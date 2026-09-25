@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+import os.path
+
 import pytest
 
 import coverage
@@ -12,7 +14,7 @@ from coverage import env
 from coverage.exceptions import ConfigError
 from tests import testenv
 from tests.coveragetest import CoverageTest
-from tests.helpers import re_line, re_lines
+from tests.helpers import holding_sysmon_tool_ids, re_line, re_lines
 
 
 class CoverageCoreTest(CoverageTest):
@@ -152,3 +154,39 @@ class CoverageCoreTest(CoverageTest):
         cov = coverage.Coverage()
         with pytest.raises(ConfigError, match=r"Unknown core value: 'nosuchcore'"):
             self.start_import_stop(cov, "numbers")
+
+    @pytest.mark.skipif(not env.PYBEHAVIOR.pep669, reason="needs sys.monitoring")
+    def test_core_sysmon_tool_id_conflict(self) -> None:
+        # If other tools have taken all of the sys.monitoring tool ids, then
+        # requesting core=sysmon falls back to a default core with a warning
+        # instead of failing, and data is still collected.
+        self.make_file(".coveragerc", "[run]\ncore = sysmon\n")
+        cov = coverage.Coverage()
+        with holding_sysmon_tool_ids(6):
+            with self.assert_warnings(
+                cov,
+                [
+                    "Can't use core=sysmon: no sys.monitoring tool id is available"
+                    + r", using default core \(no-sysmon\)",
+                ],
+            ):
+                self.start_import_stop(cov, "numbers")
+        assert cov._collector is not None
+        assert cov._collector.tracer_name() != "SysMonitor"
+        # The fallback core still collected data.
+        data = cov.get_data()
+        assert data.lines(os.path.abspath("numbers.py")) == [1]
+
+    @pytest.mark.skipif(not env.PYBEHAVIOR.pep669, reason="needs sys.monitoring")
+    def test_core_sysmon_other_tools_using_ids(self) -> None:
+        # Other tools using some of the sys.monitoring tool ids don't prevent
+        # us from using the sysmon core.
+        self.make_file(".coveragerc", "[run]\ncore = sysmon\n")
+        cov = coverage.Coverage()
+        with holding_sysmon_tool_ids(2):
+            with self.assert_warnings(cov, []):
+                self.start_import_stop(cov, "numbers")
+        assert cov._collector is not None
+        assert cov._collector.tracer_name() == "SysMonitor"
+        data = cov.get_data()
+        assert data.lines(os.path.abspath("numbers.py")) == [1]

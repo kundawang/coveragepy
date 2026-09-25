@@ -86,6 +86,30 @@ def run_command(cmd: str) -> tuple[int, str]:
     return status, output_str
 
 
+@contextlib.contextmanager
+def holding_sysmon_tool_ids(n: int) -> Iterator[list[int]]:
+    """Hold `n` of the sys.monitoring tool ids, as another tool would.
+
+    Yields the list of tool ids actually held.  Ids already in use by
+    something else (a metacov collector, for example) are skipped.
+    """
+    held: list[int] = []
+    try:
+        for tool_id in range(sys.monitoring.OPTIMIZER_ID + 1):
+            if len(held) >= n:
+                break
+            try:
+                sys.monitoring.use_tool_id(tool_id, f"test-tool-{tool_id}")
+            except ValueError:
+                # Already in use by someone else.
+                continue
+            held.append(tool_id)
+        yield held
+    finally:
+        for tool_id in held:
+            sys.monitoring.free_tool_id(tool_id)
+
+
 # $set_env.py: COVERAGE_DIS - Disassemble test code to /tmp/dis
 SHOW_DIS = bool(int(os.getenv("COVERAGE_DIS", "0")))
 

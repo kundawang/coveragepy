@@ -159,12 +159,25 @@ Can't use core=sysmon: it doesn't support concurrency=ZZZ, using default core (n
   concurrency setting, but that combination isn't supported.  A default core
   will be used instead.
 
+Can't use core=sysmon: no sys.monitoring tool id is available, using default core (no-sysmon)
+  You requested the sys.monitoring measurement core, but other tools in the
+  process (a debugger, a profiler, and so on) are already using all of the
+  :mod:`sys.monitoring` tool ids.  A default core will be used instead.
+
 .. _warning_no_sysmon_context:
 
 Dynamic contexts aren't supported with core=sysmon; context data may be incomplete (no-sysmon-context)
   You are using the sys.monitoring measurement core, and are changing the
   dynamic context. Those two features are incompatible. Context data will be
   lost. Change your configuration to use the ctrace core.
+
+.. _warning_sysmon_no_tool_id:
+
+Can't use sys.monitoring: no tool id is available, no data will be collected (sysmon-no-tool-id)
+  The sys.monitoring measurement core was starting, but other tools in the
+  process (a debugger, a profiler, and so on) are already using all of the
+  :mod:`sys.monitoring` tool ids.  Measurement will continue, but no data
+  will be collected.
 
 
 Disabling warnings

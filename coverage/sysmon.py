@@ -60,6 +60,40 @@ DISABLE_TYPE = NewType("DISABLE_TYPE", object)
 MonitorReturn = DISABLE_TYPE | None
 DISABLE = cast(MonitorReturn, getattr(sys_monitoring, "DISABLE", None))
 
+if sys_monitoring is not None:
+    # The sys.monitoring tool ids we can use, most-preferred first.  Other
+    # tools (debuggers, profilers, and so on) might already be using some of
+    # the ids, so be prepared to use any of them.  This has to be computed
+    # before sys_monitoring might be replaced with a LoggingWrapper below.
+    TOOL_IDS = [sys_monitoring.COVERAGE_ID] + [
+        tool_id
+        for tool_id in range(sys_monitoring.OPTIMIZER_ID + 1)
+        if tool_id != sys_monitoring.COVERAGE_ID
+    ]
+else:
+    TOOL_IDS = []
+
+
+def sysmon_tool_id_available() -> bool:
+    """Is a sys.monitoring tool id available for us to use?
+
+    Other tools in the process (a debugger, a profiler, etc) might already be
+    using some of the sys.monitoring tool ids.  If they are all taken, we
+    can't use sys.monitoring to collect data.
+    """
+    if sys_monitoring is None:
+        return False
+    for tool_id in TOOL_IDS:
+        try:
+            sys_monitoring.use_tool_id(tool_id, "coverage.py")
+        except ValueError:
+            # This id is being used by another tool, try the next one.
+            continue
+        else:
+            sys_monitoring.free_tool_id(tool_id)
+            return True
+    return False
+
 
 if LOG:  # pragma: debugging
 
@@ -242,15 +276,26 @@ class SysMonitor(Tracer):
         """Start this Tracer."""
         with self.lock:
             assert sys_monitoring is not None
-            while self.myid <= 5:
+            for tool_id in TOOL_IDS:
                 try:
-                    sys_monitoring.use_tool_id(self.myid, "coverage.py")
-                    break
+                    sys_monitoring.use_tool_id(tool_id, "coverage.py")
                 except ValueError:
-                    self.myid += 1
+                    # Another tool is using this id, try the next one.
                     continue
+                else:
+                    self.myid = tool_id
+                    break
             else:
-                raise RuntimeError("No sys.monitoring tool id is available")
+                # All of the tool ids are in use by other tools.  We can't
+                # collect data with sys.monitoring, but don't crash the whole
+                # measurement: explain the problem and continue without
+                # collecting.
+                self.warn(
+                    "Can't use sys.monitoring: no tool id is available, no data will be collected",
+                    slug="sysmon-no-tool-id",
+                    once=True,
+                )
+                return
             register = functools.partial(sys_monitoring.register_callback, self.myid)
             events = sys.monitoring.events
 

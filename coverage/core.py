@@ -15,7 +15,7 @@ from coverage.disposition import FileDisposition
 from coverage.exceptions import ConfigError
 from coverage.misc import isolate_module
 from coverage.pytracer import PyTracer
-from coverage.sysmon import SysMonitor
+from coverage.sysmon import SysMonitor, sysmon_tool_id_available
 from coverage.types import TDebugCtl, TFileDisposition, Tracer, TWarnFn
 
 os = isolate_module(os)
@@ -89,6 +89,15 @@ class Core:
             core_name = config.core
             _debug(f"core.py: core from config is {core_name!r}")
 
+        if (
+            not reason_no_sysmon
+            and core_name in (None, "sysmon")
+            and not sysmon_tool_id_available()
+        ):
+            # Another tool in this process is using all of the sys.monitoring
+            # tool ids, so we can't use sys.monitoring ourselves.
+            reason_no_sysmon = "no sys.monitoring tool id is available"
+
         if core_name == "sysmon" and reason_no_sysmon:
             _debug(f"core.py: defaulting because sysmon not usable: {reason_no_sysmon}")
             warn(f"Can't use core=sysmon: {reason_no_sysmon}, using default core", slug="no-sysmon")
@@ -99,6 +108,8 @@ class Core:
                 core_name = "sysmon"
                 _debug("core.py: Using sysmon because SYSMON_DEFAULT is set")
             else:
+                if env.SYSMON_DEFAULT and reason_no_sysmon:
+                    _debug(f"core.py: not using sysmon: {reason_no_sysmon}")
                 core_name = "ctrace"
                 _debug("core.py: Defaulting to ctrace core")
 
