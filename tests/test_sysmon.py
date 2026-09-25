@@ -5,10 +5,14 @@
 
 from __future__ import annotations
 
+import contextlib
+import sys
+from collections.abc import Iterator
 from unittest import mock
 
 import pytest
 
+import coverage
 from coverage import env
 from coverage.sysmon import SysMonitor, compute_multiline_map
 from tests.coveragetest import CoverageTest
@@ -73,3 +77,62 @@ class MultilineMapCacheTest(CoverageTest):
         self.make_file("multi.py", "x = 1\ny = (2 +\n    3)\n")
         assert tracer.get_multiline_map("multi.py") == MULTI_MAP  # cached
         assert SysMonitor().get_multiline_map("multi.py") == {2: 2, 3: 2}
+
+
+@pytest.mark.skipif(not env.PYBEHAVIOR.pep669, reason="SysMonitor needs sys.monitoring")
+class SysmonConflictTest(CoverageTest):
+    """Tests of how the sysmon core tolerates other sys.monitoring tools."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.set_environ("COVERAGE_CORE", "sysmon")
+
+    @contextlib.contextmanager
+    def tool_ids_in_use(self, count: int) -> Iterator[None]:
+        """Grab `count` sys.monitoring tool ids, as another tool would."""
+        grabbed = []
+        try:
+            for tool_id in range(count):
+                # Some ids might already be in use, perhaps by metacov.
+                with contextlib.suppress(ValueError):
+                    sys.monitoring.use_tool_id(tool_id, f"other-tool-{tool_id}")
+                    grabbed.append(tool_id)
+            yield
+        finally:
+            for tool_id in grabbed:
+                sys.monitoring.free_tool_id(tool_id)
+
+    def test_all_ids_in_use_falls_back_to_pytrace(self) -> None:
+        self.make_file("numbers.py", "print(123, 456)\n")
+        cov = coverage.Coverage()
+        with self.tool_ids_in_use(6):
+            with self.assert_warnings(
+                cov,
+                [r"Can't use sys.monitoring: all of its tool ids are in use by other tools"],
+            ):
+                self.start_import_stop(cov, "numbers")
+            # The sysmon core couldn't be used, so we fell back to pytrace.
+            assert cov._collector.tracer_name() == "PyTracer"
+        # Measurement continued despite the conflict.
+        report = self.get_report(cov)
+        assert "numbers.py 1 0 100%" in report
+
+    def test_some_ids_in_use_still_uses_sysmon(self) -> None:
+        self.make_file("numbers.py", "print(123, 456)\n")
+        cov = coverage.Coverage()
+        with self.tool_ids_in_use(3):
+            with self.assert_warnings(cov, []):
+                self.start_import_stop(cov, "numbers")
+            # There were still tool ids available, so sysmon was used.
+            assert cov._collector.tracer_name() == "SysMonitor"
+        report = self.get_report(cov)
+        assert "numbers.py 1 0 100%" in report
+
+    def test_no_conflict_uses_sysmon(self) -> None:
+        self.make_file("numbers.py", "print(123, 456)\n")
+        cov = coverage.Coverage()
+        with self.assert_warnings(cov, []):
+            self.start_import_stop(cov, "numbers")
+        assert cov._collector.tracer_name() == "SysMonitor"
+        report = self.get_report(cov)
+        assert "numbers.py 1 0 100%" in report

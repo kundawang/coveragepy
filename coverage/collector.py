@@ -17,7 +17,7 @@ from coverage import env
 from coverage.core import Core
 from coverage.data import CoverageData
 from coverage.debug import short_stack
-from coverage.exceptions import ConfigError
+from coverage.exceptions import ConfigError, SysmonConflict
 from coverage.misc import human_sorted_items, isolate_module
 from coverage.plugin import CoveragePlugin
 from coverage.types import (
@@ -269,7 +269,21 @@ class Collector:
         if hasattr(tracer, "disable_plugin"):
             tracer.disable_plugin = self.disable_plugin
 
-        fn = tracer.start()
+        try:
+            fn = tracer.start()
+        except SysmonConflict:
+            # Other tools (profilers, debuggers, etc) are using all of the
+            # sys.monitoring tool ids, so the sysmon core can't be used.
+            # Fall back to the pytrace core so measurement can continue.
+            self.warn(
+                "Can't use sys.monitoring: all of its tool ids are in use by other tools, "
+                "using the pytrace core instead",
+                slug="sysmon-conflict",
+                once=True,
+            )
+            self.core.use_pytrace_fallback()
+            return self._start_tracer()
+
         self.tracers.append(tracer)
 
         return fn

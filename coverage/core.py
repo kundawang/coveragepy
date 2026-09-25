@@ -137,5 +137,19 @@ class Core:
         else:
             raise ConfigError(f"Unknown core value: {core_name!r}")
 
+    def use_pytrace_fallback(self) -> None:
+        """Switch this core to pytrace because sysmon couldn't be used.
+
+        The sysmon core can fail at run time if other tools are using all of
+        the sys.monitoring tool ids.  In that case we fall back to the pytrace
+        core so that measurement can continue.
+        """
+        self.tracer_class = PyTracer
+        self.file_disposition_class = FileDisposition
+        self.supports_plugins = False
+        self.supports_dynamic_contexts = True
+        self.packed_arcs = False
+        self.systrace = True
+
     def __repr__(self) -> str:
         return f"<Core tracer_class={self.tracer_class.__name__}>"

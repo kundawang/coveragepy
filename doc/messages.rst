@@ -166,6 +166,13 @@ Dynamic contexts aren't supported with core=sysmon; context data may be incomple
   dynamic context. Those two features are incompatible. Context data will be
   lost. Change your configuration to use the ctrace core.
 
+.. _warning_sysmon_conflict:
+
+Can't use sys.monitoring: all of its tool ids are in use by other tools, using the pytrace core instead (sysmon-conflict)
+  The sys.monitoring measurement core needs a sys.monitoring tool id, but
+  other tools (such as profilers or debuggers) are already using all of them.
+  Coverage measurement continues with the pytrace core instead.
+
 
 Disabling warnings
 ------------------

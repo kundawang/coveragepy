@@ -55,6 +55,10 @@ class PluginError(CoverageException):
     """A plugin misbehaved."""
 
 
+class SysmonConflict(CoverageException):
+    """Another tool is using sys.monitoring, so we can't."""
+
+
 class _ExceptionDuringRun(CoverageException):
     """An exception happened while running customer code.
 

@@ -22,7 +22,7 @@ from typing import Any, NewType, cast
 from coverage import env
 from coverage.bytecode import BranchArcResolver, bytes_to_lines
 from coverage.debug import short_filename, short_stack
-from coverage.exceptions import NoSource
+from coverage.exceptions import NoSource, SysmonConflict
 from coverage.misc import isolate_module
 from coverage.parser import multiline_map_from_text
 from coverage.python import get_python_source
@@ -250,7 +250,7 @@ class SysMonitor(Tracer):
                     self.myid += 1
                     continue
             else:
-                raise RuntimeError("No sys.monitoring tool id is available")
+                raise SysmonConflict("No sys.monitoring tool id is available")
             register = functools.partial(sys_monitoring.register_callback, self.myid)
             events = sys.monitoring.events
 

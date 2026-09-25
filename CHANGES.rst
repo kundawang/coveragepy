@@ -23,6 +23,12 @@ upgrading your version of coverage.py.
 Unreleased
 ----------
 
+- Fix: if other tools (such as profilers or debuggers) were using all of the
+  sys.monitoring tool ids, the sysmon core would fail with "No sys.monitoring
+  tool id is available".  Now coverage.py falls back to the pytrace core and
+  continues measuring, with a ``sysmon-conflict`` warning explaining what
+  happened.
+
 - Fix: on Python 3.14 and later, a ``for`` loop completing immediately before a
   function return could mistakenly report an uncovered branch. This is now
   fixed, closing `issue 2168`_.
