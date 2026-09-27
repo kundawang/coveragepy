@@ -23,10 +23,17 @@ upgrading your version of coverage.py.
 Unreleased
 ----------
 
+- Fix: explicitly requesting the sys.monitoring core (``core=sysmon``) with
+  settings it can't support (branch coverage before Python 3.14, dynamic
+  contexts, or greenlet/eventlet/gevent concurrency) now raises an error
+  instead of only warning and silently using a different core.  Closes
+  `issue 2064`_.
+
 - Fix: on Python 3.14 and later, a ``for`` loop completing immediately before a
   function return could mistakenly report an uncovered branch. This is now
   fixed, closing `issue 2168`_.
 
+.. _issue 2064: https://github.com/coveragepy/coveragepy/issues/2064
 .. _issue 2168: https://github.com/coveragepy/coveragepy/issues/2168
 
 

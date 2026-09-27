@@ -382,7 +382,10 @@ class WithoutConcurrencyModuleTest(CoverageTest):
     def test_missing_module(self, module: str) -> None:
         self.make_file("prog.py", "a = 1")
         sys.modules[module] = None  # type: ignore[assignment]
-        msg = rf"Couldn't trace with concurrency={module}, the module isn't installed."
+        if testenv.SYS_MON:
+            msg = rf"Can't use core=sysmon: it doesn't support concurrency={module}"
+        else:
+            msg = rf"Couldn't trace with concurrency={module}, the module isn't installed."
         with pytest.raises(ConfigError, match=msg):
             self.command_line(f"run --concurrency={module} prog.py")
 
