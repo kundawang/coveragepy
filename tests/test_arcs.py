@@ -522,6 +522,23 @@ class LoopArcTest(CoverageTest):
             branchz_missing="",
         )
 
+    def test_loop_completion_early_return(self) -> None:
+        self.check_coverage(
+            """\
+            def foo(*x):
+                for i in x:
+                    if i:
+                        return i
+                return None
+
+            foo()
+            foo(0)
+            foo(1)
+            """,
+            branchz="23 25 32 34",
+            branchz_missing="",
+        )
+
     def test_break(self) -> None:
         self.check_coverage(
             """\
