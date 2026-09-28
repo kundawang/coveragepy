@@ -138,7 +138,7 @@ def source_token_lines(source: str) -> TSourceTokenLines:
     col = 0
 
     source = source.expandtabs(8).replace("\r\n", "\n")
-    tokgen = generate_tokens(source)
+    tokgen = expanded_fstring_middle_tokens(generate_tokens(source), source)
 
     soft_key_lines = find_soft_key_lines(source)
 
@@ -155,9 +155,6 @@ def source_token_lines(source: str) -> TSourceTokenLines:
             elif ttype in ws_tokens:
                 mark_end = False
             else:
-                if env.PYBEHAVIOR.fstring_syntax and ttype == token.FSTRING_MIDDLE:
-                    part = part.replace("{", "{{").replace("}", "}}")
-                    ecol = scol + len(part)
                 if mark_start and scol > col:
                     line.append(("ws", " " * (scol - col)))
                     mark_start = False
@@ -184,6 +181,46 @@ def source_token_lines(source: str) -> TSourceTokenLines:
 
     if line:
         yield line
+
+
+def expanded_fstring_middle_tokens(toks: TokenInfos, source: str) -> TokenInfos:
+    """Expand f-string middle tokens to include escaped braces.
+
+    In the token stream, an escaped brace is represented by one brace character
+    with a gap between token positions.  Use those positions to recover the
+    original source text, rather than doubling every brace in the token.
+
+    """
+    if not env.PYBEHAVIOR.fstring_syntax:
+        yield from toks
+        return
+
+    source_lines = source.splitlines()
+    tok_iter = iter(toks)
+    current = next(tok_iter, None)
+    while current is not None:
+        following = next(tok_iter, None)
+        if following is not None and current.type == token.FSTRING_MIDDLE:
+            sline, scol = current.start
+            eline, ecol = following.start
+            if sline == eline:
+                ttext = source_lines[sline - 1][scol:ecol]
+            else:
+                ttext = source_lines[sline - 1][scol:]
+                ttext += "\n"
+                ttext += "\n".join(source_lines[sline : eline - 1])
+                if eline > sline + 1:
+                    ttext += "\n"
+                ttext += source_lines[eline - 1][:ecol]
+            current = tokenize.TokenInfo(
+                current.type,
+                ttext,
+                current.start,
+                following.start,
+                current.line,
+            )
+        yield current
+        current = following
 
 
 def generate_tokens(text: str) -> TokenInfos:

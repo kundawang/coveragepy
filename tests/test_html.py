@@ -1378,6 +1378,7 @@ assert len(math) == 18
             """\
             x = 1
             f'Look: {x} {{x}}!'
+            f'Four braces: {{{{x}}}}'
             """,
         )
 
@@ -1388,6 +1389,7 @@ assert len(math) == 18
         assert self.get_html_report_text_lines("fstring_middle.py") == [
             "1" + "x = 1",
             "2" + "f'Look: {x} {{x}}!'",
+            "3" + "f'Four braces: {{{{x}}}}'",
         ]
 
     def test_unicode(self) -> None:

@@ -23,6 +23,10 @@ upgrading your version of coverage.py.
 Unreleased
 ----------
 
+- Fix: f-strings with four literal braces (``{{{{`` or ``}}}}``) were rendered
+  incorrectly in HTML reports. They are now reconstructed faithfully from the
+  source tokens.
+
 - Fix: on Python 3.14 and later, a ``for`` loop completing immediately before a
   function return could mistakenly report an uncovered branch. This is now
   fixed, closing `issue 2168`_.

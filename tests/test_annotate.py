@@ -72,6 +72,25 @@ class AnnotationGoldTest(CoverageTest):
         cov.annotate(directory="out_anno_dir")
         assert sorted(os.listdir("out_anno_dir")) == ["main.py,cover", "mod.pyw,cover"]
 
+    def test_fstring_braces(self) -> None:
+        self.make_file(
+            "fstring_braces.py",
+            """\
+            x = 1
+            print(f'Look: {x} {{x}}')
+            print(f'Four braces: {{{{x}}}}')
+            """,
+        )
+        cov = coverage.Coverage()
+        self.start_import_stop(cov, "fstring_braces")
+        cov.annotate()
+        with open("fstring_braces.py,cover", encoding="utf-8") as cover_file:
+            assert cover_file.readlines() == [
+                "> x = 1\n",
+                "> print(f'Look: {x} {{x}}')\n",
+                "> print(f'Four braces: {{{{x}}}}')\n",
+            ]
+
     def test_encoding(self) -> None:
         self.make_file(
             "utf8.py",

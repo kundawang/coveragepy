@@ -159,6 +159,7 @@ class PhysTokensTest(CoverageTest):
             source_token_lines(
                 textwrap.dedent("""\
                     f'Look: {x} {{x}}!'
+                    f'Four braces: {{{{x}}}}'
                 """)
             )
         )
@@ -175,9 +176,30 @@ class PhysTokensTest(CoverageTest):
                     ("fst", "!"),
                     ("fst", "'"),
                 ],
+                [
+                    ("fst", "f'"),
+                    ("fst", "Four braces: {{"),
+                    ("fst", "{{"),
+                    ("fst", "x}}"),
+                    ("fst", "}}"),
+                    ("fst", "'"),
+                ],
             ]
         else:
-            assert tokens == [[("str", "f'Look: {x} {{x}}!'")]]
+            assert tokens == [
+                [("str", "f'Look: {x} {{x}}!'")],
+                [("str", "f'Four braces: {{{{x}}}}'")],
+            ]
+        self.check_tokenization(
+            textwrap.dedent("""\
+                f'{{x}} {{{{x}}}} {y}'
+                f'''
+                {{x}}
+                {{{{x}}}}
+                {y}
+                '''
+            """)
+        )
 
 
 class SoftKeywordTest(CoverageTest):
